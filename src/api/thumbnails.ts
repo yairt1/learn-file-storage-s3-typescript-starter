@@ -2,7 +2,7 @@ import type { BunRequest } from "bun";
 import { getBearerToken, validateJWT } from "../auth";
 import type { ApiConfig } from "../config";
 import { getVideo, updateVideo } from "../db/videos";
-import { getDataURL } from "./assets";
+import { getAssetsDiskPath, getAssetsURL, mediaTypeToExt } from "./assets";
 import { BadRequestError, NotFoundError, UserForbiddenError } from "./errors";
 import { respondWithJSON } from "./json";
 
@@ -41,11 +41,15 @@ export async function handlerUploadThumbnail(cfg: ApiConfig, req: BunRequest) {
   }
 
   const mediaType = thumbnail.type;
-  const fileData = await thumbnail.arrayBuffer();
+  const ext = mediaTypeToExt(mediaType);
+  const fileName = `${videoId}.${ext}`;
 
-  const base64Encoded = Buffer.from(fileData).toString("base64");
-  const base64DataURL = getDataURL(mediaType, base64Encoded);
-  video.thumbnailURL = base64DataURL;
+  const assetsDiskPath = getAssetsDiskPath(cfg, fileName);
+  await Bun.write(assetsDiskPath, thumbnail);
+
+  const urlPath = getAssetsURL(cfg, fileName);
+  video.thumbnailURL = assetsDiskPath;
+
   updateVideo(cfg.db, video);
 
   return respondWithJSON(200, video);
