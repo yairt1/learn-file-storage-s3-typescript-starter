@@ -47,7 +47,7 @@ export async function handlerUploadThumbnail(cfg: ApiConfig, req: BunRequest) {
   }
 
   const ext = mediaTypeToExt(mediaType);
-  const fileName = `${videoId}.${ext}`;
+  const fileName = `${videoId}${ext}`;
 
   const assetsDiskPath = getAssetsDiskPath(cfg, fileName);
   await Bun.write(assetsDiskPath, thumbnail);
