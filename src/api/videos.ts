@@ -53,13 +53,60 @@ export async function handlerUploadVideo(cfg: ApiConfig, req: BunRequest) {
   const tempFilePath = path.join("/tmp", key);
   await Bun.write(tempFilePath, file);
 
-  await uploadVideoToS3(cfg, key, tempFilePath, mediaType);
+  const aspectRatio = await getVideoAspectRatio(tempFilePath);
+  const fullKey = `${aspectRatio}/${key}`;
 
-  const videoURL = `https://${cfg.s3Bucket}.s3.${cfg.s3Region}.amazonaws.com/${key}`;
+  await uploadVideoToS3(cfg, fullKey, tempFilePath, mediaType);
+
+  const videoURL = `https://${cfg.s3Bucket}.s3.${cfg.s3Region}.amazonaws.com/${fullKey}`;
   video.videoURL = videoURL;
   updateVideo(cfg.db, video);
 
   await Promise.all([rm(tempFilePath, { force: true })]);
 
   return respondWithJSON(200, video);
+}
+
+export async function getVideoAspectRatio(filePath: string) {
+  const proc = Bun.spawn(
+    [
+      "ffprobe",
+      "-v",
+      "error",
+      "-select_streams",
+      "v:0",
+      "-show_entries",
+      "stream=width,height",
+      "-of",
+      "json",
+      filePath,
+    ],
+    {
+      stdout: "pipe",
+      stderr: "pipe",
+    },
+  );
+
+  const stdoutText = await new Response(proc.stdout).text();
+  const stderrText = await new Response(proc.stderr).text();
+  const exitCode = await proc.exited;
+
+  if (exitCode !== 0) {
+    console.log(stderrText);
+    throw new Error("Couldn't get video aspect ratio");
+  }
+
+  const output = JSON.parse(stdoutText);
+
+  if (!output.streams || output.streams.length === 0) {
+    throw new Error("No video streams found");
+  }
+
+  const { width, height } = output.streams[0];
+
+  return width === Math.floor(16 * (height / 9))
+    ? "landscape"
+    : height === Math.floor(16 * (width / 9))
+      ? "portrait"
+      : "other";
 }
