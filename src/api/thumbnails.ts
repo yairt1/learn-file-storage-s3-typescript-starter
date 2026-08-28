@@ -53,8 +53,7 @@ export async function handlerUploadThumbnail(cfg: ApiConfig, req: BunRequest) {
   await Bun.write(assetsDiskPath, thumbnail);
 
   const urlPath = getAssetsURL(cfg, fileName);
-  video.thumbnailURL = assetsDiskPath;
-
+  video.thumbnailURL = urlPath;
   updateVideo(cfg.db, video);
 
   return respondWithJSON(200, video);
