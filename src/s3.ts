@@ -6,7 +6,15 @@ export async function uploadVideoToS3(
   processesFilePath: string,
   contentType: string,
 ) {
-  const s3File = cfg.s3Client.file(key, { bucket: cfg.s3Bucket });
+  const s3file = cfg.s3Client.file(key, { bucket: cfg.s3Bucket });
   const videoFile = Bun.file(processesFilePath);
-  await s3File.write(videoFile, { type: contentType });
+  await s3file.write(videoFile, { type: contentType });
+}
+
+export function generatePresignedURL(
+  cfg: ApiConfig,
+  key: string,
+  expireTime: number,
+) {
+  return cfg.s3Client.presign(`${key}`, { expiresIn: expireTime });
 }
